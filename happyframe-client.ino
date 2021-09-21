@@ -22,30 +22,39 @@
 Adafruit_RA8875 tft = Adafruit_RA8875(RA8875_CS, RA8875_RESET);
 
 void setup() {
+    Serial.begin(115200);
     #ifdef WPA_KEY
         WiFi.begin(SSID, WPA_KEY);
     #else
         WiFi.begin(SSID);
     #endif
-    while (WiFi.status() != WL_CONNECTED);
+    while (WiFi.status() != WL_CONNECTED) {
+        delay(200);
+    }
+    Serial.println("Wifi connected");
 
-    while (!tft.begin(RA8875_800x480));
+    while (!tft.begin(RA8875_800x480)) {
+        delay(500);
+    }
     tft.displayOn(true);
     tft.GPIOX(true);
     tft.PWM1config(true, RA8875_PWM_CLK_DIV1024);
     tft.PWM1out(255);
+    Serial.println("TFT initialized");
 
     LittleFS.begin();
-    if (LittleFS.exists("/image.bmp")) {
-        display_bmp(LittleFS.open("/image.bmp", "r"));
+    if (!LittleFS.exists("/image.bmp")) {
+        Serial.println("Don't have image, have to go fetch");
+        request_and_save_file("https://people.math.sc.edu/Burkardt/data/bmp/dots.bmp");
     }
+    display_bmp(LittleFS.open("/image.bmp", "r"));
 }
 
 void loop() {
-    tft.fillScreen(RA8875_WHITE);
-    delay(500);
-    tft.fillScreen(RA8875_RED);
-    delay(500);
+    //tft.fillScreen(RA8875_WHITE);
+    //delay(500);
+    //tft.fillScreen(RA8875_RED);
+    //delay(500);
 }
 
 void request_and_save_file(String url) {
@@ -75,9 +84,8 @@ void request_and_save_file(String url) {
 }
 
 // Adapted from https://github.com/adafruit/Adafruit_RA8875/blob/master/examples/ra8875_bitmap_fast/ra8875_bitmap_fast.ino
-#define BUFFPIXEL 20
-
 void display_bmp(File image) {
+    Serial.println("Displaying image");
     int bmpWidth, bmpHeight;
     uint8_t bmpDepth; // Bit depth (must be 24 currently)
     uint32_t bmpImageOffset;
@@ -101,9 +109,13 @@ void display_bmp(File image) {
         bmpWidth = read32(image);
         bmpHeight = read32(image);
         if (bmpWidth == 800 && bmpHeight == 480) {
+            Serial.println("Image width and height are correct");
             if (read16(image) == 1) { // Must be only 1 plane
                 bmpDepth = read16(image);
+                Serial.print("Bit depth: ");
+                Serial.println(bmpDepth);
                 if ((bmpDepth == 24) && (read32(image) == 0)) { // 0 = uncompressed
+                    Serial.println("Image has proper bit depth and is uncompressed");
                     goodBmp = true;
 
                     // BMP rows are padded (if needed) to 4-byte boundary
@@ -117,9 +129,14 @@ void display_bmp(File image) {
                     w = tft.width();
                     h = tft.height();
                     ypos = 0;
-                    xpos = 0;
                     for (row = 0; row < h; ++row) {
                         // For each scanline seek to start of scanline
+                        //Serial.print("X, Y: ");
+                        //Serial.print(xpos);
+                        //Serial.print(", ");
+                        //Serial.println(ypos);
+                        //Serial.print("Lcdindex: ");
+                        //Serial.println(lcdidx);
                         if (flip) {
                             pos = bmpImageOffset + (bmpHeight - 1 - row) * rowSize;
                         } else {
@@ -130,7 +147,7 @@ void display_bmp(File image) {
                             image.seek(pos);
                             buffidx = sizeof(fsbuffer);
                         }
-
+                        xpos = 0;
                         for (col = 0; col < w; ++col) {
                             if (buffidx >= sizeof(fsbuffer)) {
                                 if (lcdidx > 0) {
@@ -169,7 +186,7 @@ void display_bmp(File image) {
     }
 
     image.close();
-    //if (!goodBmp) // IDK cry and stuff
+    if (!goodBmp) Serial.println("Bad file! Go fix your file you fool");
 }
 
 
