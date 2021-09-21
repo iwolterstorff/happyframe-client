@@ -17,7 +17,7 @@
 #define RA8875_RESET 5
 
 // The number of pixels to buffer for loading
-#define BUFFPIXEL 20
+#define BUFFPIXEL 50
 
 Adafruit_RA8875 tft = Adafruit_RA8875(RA8875_CS, RA8875_RESET);
 
